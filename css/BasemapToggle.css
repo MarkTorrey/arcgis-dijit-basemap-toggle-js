@@ -1,3 +1,9 @@
+.BasemapToggle .internalmap {
+    width: 75px;
+    height: 75px;
+    curor: pointer;
+}
+
 .BasemapToggle .toggleButton {
     padding: 1px;
     background: #fff;

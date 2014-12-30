@@ -1,9 +1,11 @@
+/*global define*/
 define([
     "dojo/Evented",
     "dojo/_base/declare",
     "dojo/_base/lang",
     "dojo/has",
     "esri/kernel",
+    "esri/map",
     "dijit/_WidgetBase",
     "dijit/a11yclick",
     "dijit/_TemplatedMixin",
@@ -14,16 +16,22 @@ define([
     "dojo/dom-class",
     "dojo/dom-style",
     "dojo/dom-construct"
-],
-function (
+], function (
     Evented,
     declare,
     lang,
-    has, esriNS,
-    _WidgetBase, a11yclick, _TemplatedMixin,
+    has,
+    esriNS,
+    EsriMap,
+    _WidgetBase,
+    a11yclick,
+    _TemplatedMixin,
     on,
-    dijitTemplate, i18n,
-    domClass, domStyle, domConstruct
+    dijitTemplate,
+    i18n,
+    domClass,
+    domStyle,
+    domConstruct
 ) {
     var basePath = require.toUrl("esri/dijit");
     var Widget = declare("esri.dijit.BasemapToggle", [_WidgetBase, _TemplatedMixin, Evented], {
@@ -38,31 +46,31 @@ function (
                 "streets": {
                     label: i18n.widgets.basemapToggle.basemapLabels.streets,
                     url: basePath + "/images/basemaps/streets.jpg"
-                }, 
+                },
                 "satellite": {
                     label: i18n.widgets.basemapToggle.basemapLabels.satellite,
                     url: basePath + "/images/basemaps/satellite.jpg"
-                }, 
+                },
                 "hybrid": {
                     label: i18n.widgets.basemapToggle.basemapLabels.hybrid,
                     url: basePath + "/images/basemaps/hybrid.jpg"
-                }, 
+                },
                 "topo": {
                     label: i18n.widgets.basemapToggle.basemapLabels.topo,
                     url: basePath + "/images/basemaps/topo.jpg"
-                }, 
+                },
                 "gray": {
                     label: i18n.widgets.basemapToggle.basemapLabels.gray,
                     url: basePath + "/images/basemaps/gray.jpg"
-                }, 
+                },
                 "oceans": {
                     label: i18n.widgets.basemapToggle.basemapLabels.oceans,
                     url: basePath + "/images/basemaps/oceans.jpg"
-                }, 
+                },
                 "national-geographic": {
                     label: i18n.widgets.basemapToggle.basemapLabels['national-geographic'],
                     url: basePath + "/images/basemaps/national-geographic.jpg"
-                }, 
+                },
                 "osm": {
                     label: i18n.widgets.basemapToggle.basemapLabels.osm,
                     url: basePath + "/images/basemaps/osm.jpg"
@@ -70,7 +78,7 @@ function (
             }
         },
         // lifecycle: 1
-        constructor: function(options, srcRefNode) {
+        constructor: function (options, srcRefNode) {
             // mix in settings and defaults
             var defaults = lang.mixin({}, this.options, options);
             // widget node
@@ -93,15 +101,18 @@ function (
                 basemapImage: "basemapImage",
                 basemapTitle: "basemapTitle"
             };
+
+
+
         },
-        postCreate: function() {
+        postCreate: function () {
             this.inherited(arguments);
             this.own(
                 on(this._toggleNode, a11yclick, lang.hitch(this, this.toggle))
             );
         },
         // start widget. called by user
-        startup: function() {
+        startup: function () {
             // map not defined
             if (!this.map) {
                 this.destroy();
@@ -111,13 +122,13 @@ function (
             if (this.map.loaded) {
                 this._init();
             } else {
-                on.once(this.map, "load", lang.hitch(this, function() {
+                on.once(this.map, "load", lang.hitch(this, function () {
                     this._init();
                 }));
             }
         },
         // connections/subscriptions will be cleaned up during the destroy() lifecycle phase
-        destroy: function() {
+        destroy: function () {
             this.inherited(arguments);
         },
         /* ---------------- */
@@ -128,15 +139,17 @@ function (
         /* ---------------- */
         /* Public Functions */
         /* ---------------- */
-        show: function() {
+        show: function () {
             this.set("visible", true);
         },
-        hide: function() {
+
+        hide: function () {
             this.set("visible", false);
         },
-        toggle: function() {
+
+        toggle: function () {
             var bm = this.map.getBasemap();
-            if(bm){
+            if (bm) {
                 this.set("defaultBasemap", bm);
             }
             var currentBasemap = this.get("defaultBasemap");
@@ -145,12 +158,11 @@ function (
                 previousBasemap: currentBasemap,
                 currentBasemap: basemap
             };
-            if(currentBasemap !== basemap){
+            if (currentBasemap !== basemap) {
                 this.map.setBasemap(basemap);
                 this.set("basemap", currentBasemap);
                 this._basemapChange();
-            }
-            else{
+            } else {
                 toggleEvt.error = new Error("BasemapToggle::Current basemap is same as new basemap");
             }
             this.emit("toggle", toggleEvt);
@@ -158,22 +170,32 @@ function (
         /* ---------------- */
         /* Private Functions */
         /* ---------------- */
-        _init: function() {
+        _init: function () {
             this._visible();
             this._basemapChange();
-            this.own(on(this.map, "basemap-change", lang.hitch(this, function() {
+
+            this.own(on(this.map, "basemap-change", lang.hitch(this, function () {
                 this._basemapChange();
             })));
+
+            this.own(on(this.map, "extent-change", lang.hitch(this, function () {
+                this._updateInternalMapExtent(this.map.extent);
+            })));
+
+
             this.set("loaded", true);
             this.emit("load", {});
+
         },
-        _getBasemapInfo: function(basemap) {
+
+        _getBasemapInfo: function (basemap) {
             var basemaps = this.get("basemaps");
-            if (basemaps && basemaps.hasOwnProperty(basemap) ) {
+            if (basemaps && basemaps.hasOwnProperty(basemap)) {
                 return basemaps[basemap];
             }
         },
-        _updateImage: function(){
+
+        _updateImage: function () {
             var basemap = this.get("basemap");
             var info = this._getBasemapInfo(basemap);
             var imageUrl = info.url;
@@ -183,24 +205,53 @@ function (
             domConstruct.empty(this._toggleNode);
             domConstruct.place(html, this._toggleNode, 'only');
         },
-        _basemapChange: function() {
+
+        _updateMap: function (withExtent) {
+            var html = '<div id="intMap" class="internalmap"></div>';
+            domConstruct.empty(this._toggleNode);
+            var newNode = domConstruct.place(html, this._toggleNode, 'only');
+
+            this.internalMap = new EsriMap(newNode, {
+                basemap: this.get("basemap"),
+                logo: false,
+                showAttribution: false,
+                slider: false,
+                extent: withExtent
+            });
+
+            this.own(on(this.internalMap, 'load', lang.hitch(this, function () {
+                this.internalMap.disablePan();
+            })));
+        },
+
+
+        _updateInternalMapExtent: function (withExtent) {
+            this.internalMap.setExtent(withExtent);
+        },
+
+
+
+        _basemapChange: function () {
             var bm = this.map.getBasemap();
-            if(bm){
+            if (bm) {
                 this.set("defaultBasemap", bm);
             }
             var currentBasemap = this.get("defaultBasemap");
             var basemap = this.get("basemap");
-            this._updateImage();
+            //this._updateImage();
+            this._updateMap(this.map.extent);
             domClass.remove(this._toggleNode, currentBasemap);
             domClass.add(this._toggleNode, basemap);
         },
-        _updateThemeWatch: function(attr, oldVal, newVal) {
+
+        _updateThemeWatch: function (attr, oldVal, newVal) {
             if (this.get("loaded")) {
                 domClass.remove(this.domNode, oldVal);
                 domClass.add(this.domNode, newVal);
             }
         },
-        _visible: function() {
+
+        _visible: function () {
             if (this.get("visible")) {
                 domStyle.set(this.domNode, 'display', 'block');
             } else {
@@ -208,6 +259,7 @@ function (
             }
         }
     });
+
     if (has("extend-esri")) {
         lang.setObject("dijit.BasemapToggle", Widget, esriNS);
     }
